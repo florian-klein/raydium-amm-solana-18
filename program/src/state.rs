@@ -700,16 +700,7 @@ impl AmmInfo {
         account: &'a AccountInfo,
         program_id: &Pubkey,
     ) -> Result<RefMut<'a, Self>, ProgramError> {
-        if account.owner != program_id {
-            return Err(AmmError::InvalidAmmAccountOwner.into());
-        }
-        if account.data_len() != size_of::<Self>() {
-            return Err(AmmError::ExpectedAccount.into());
-        }
         let data = Self::load_mut(account)?;
-        if data.status == AmmStatus::Uninitialized as u64 {
-            return Err(AmmError::InvalidStatus.into());
-        }
         Ok(data)
     }
 
