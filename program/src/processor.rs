@@ -184,6 +184,7 @@ impl Processor {
         Ok(open_orders)
     }
 
+    #[inline]
     pub fn load_serum_market_order_relaxed<'a>(
         market_acc: &AccountInfo<'a>,
         open_orders_acc: &AccountInfo<'a>,
