@@ -184,6 +184,38 @@ impl Processor {
         Ok(open_orders)
     }
 
+    pub fn load_serum_market_order_relaxed<'a>(
+        market_acc: &AccountInfo<'a>,
+        open_orders_acc: &AccountInfo<'a>,
+        authority_acc: &AccountInfo<'a>,
+        market_program: &Pubkey,
+        amm_open_orders: &Pubkey,
+        // Allow for the market flag to be set to AccountFlag::Disabled
+        allow_disabled: bool,
+    ) -> Result<(Box<MarketState>, Box<OpenOrders>), ProgramError> {
+        let market_state = Market::load(market_acc, market_program, allow_disabled)?;
+        let open_orders = market_state.load_orders_mut(
+            open_orders_acc,
+            Some(authority_acc),
+            market_program,
+            None,
+            None,
+        )?;
+        if identity(open_orders.market) != market_acc.key.to_aligned_bytes() {
+            return Err(AmmError::InvalidMarket.into());
+        }
+        if identity(open_orders.owner) != authority_acc.key.to_aligned_bytes() {
+            return Err(AmmError::InvalidOwner.into());
+        }
+        if *open_orders_acc.key != *amm_open_orders {
+            return Err(AmmError::InvalidOpenOrders.into());
+        }
+        Ok((
+            Box::new(*market_state.deref()),
+            Box::new(*open_orders.deref()),
+        ))
+    }
+
     pub fn load_serum_market_order<'a>(
         market_acc: &AccountInfo<'a>,
         open_orders_acc: &AccountInfo<'a>,
@@ -209,10 +241,10 @@ impl Processor {
         if *open_orders_acc.key != amm.open_orders {
             return Err(AmmError::InvalidOpenOrders.into());
         }
-        return Ok((
+        Ok((
             Box::new(*market_state.deref()),
             Box::new(*open_orders.deref()),
-        ));
+        ))
     }
 
     fn _get_dex_best_price(slab: &RefMut<serum_dex::critbit::Slab>, side: Side) -> Option<u64> {
